@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Python
 __pycache__/
@@ -16,6 +15,8 @@ env/
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 
 # IDE
 .vscode/

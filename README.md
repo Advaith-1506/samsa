@@ -1,234 +1,120 @@
-# 🦋 Samsa Prediction Markets
+# Samsa Prediction Markets
 
-A modern prediction markets platform where users can trade on the outcomes of real-world events across politics, sports, technology, finance, and more.
+A local prediction-market prototype exploring probability updates, simulated trades, and portfolio tracking. Built with a JavaScript frontend, Node.js/Express API, JSON persistence, and JavaScript/Python pricing experiments.
 
-![Samsa Logo](Logo-Title.png)
+**Scope:** simulated trading for engineering exploration. This repository does not demonstrate production operation, real-money market services, or a deployed exchange.
 
-## ✨ Features
+## Problem and key features
 
-### 📊 Markets
-- **Browse Markets** - Explore prediction markets across multiple categories
-- **Trending Slideshow** - Featured markets with live probability charts
-- **Category Filtering** - Filter by Politics, Sports, Crypto, Technology, Finance, Entertainment, Climate, Science, and more
-- **Search** - Find markets by keywords
+Samsa explores how users can compare event outcomes and inspect the effect of a simulated trade on probability and risk.
 
-### 💹 Trading
-- **LMSR Pricing** - Logarithmic Market Scoring Rule for fair, automated market making
-- **Binary & Multi-Outcome** - Support for Yes/No markets and multiple choice markets
-- **Real-time Odds** - Prices update based on trading activity
-- **Rebated Risk Model** - Partial refunds on losing trades based on odds at time of trade
+- Market browsing, category filters, binary and multiple-outcome market records.
+- Trade previews and a portfolio interface.
+- Market creation, prediction recording, and manual outcome resolution APIs.
+- A binary LMSR-inspired engine with liquidity, risk-weighted pressure updates, and rebate calculations.
+- File-based storage that makes prototype state easy to inspect.
 
-### 👤 Dashboard
-- **Portfolio Overview** - Track your positions and performance
-- **Buying Power** - Manage your wallet balance
-- **Watchlist** - Save markets to follow
-- **Recent Activity** - View your trading history
+## Pricing implementation and technical decisions
 
-### 🎯 Interests
-- **Follow Topics** - Subscribe to categories and topics you care about
-- **Personalized Feed** - Get market recommendations based on your interests
-- **Sports Leagues** - Detailed pages for major sports leagues (NBA, NFL, Premier League, etc.)
+The browser engine in [lmsr-engine.js](js/core/lmsr-engine.js) computes:
 
-### 🔔 Notifications
-- Slide-out notification panel
-- Trade confirmations and market updates
-- Resolution alerts
-
-## 🚀 Quick Start
-
-### Option 1: One-Click Start (Windows)
-Simply double-click `start-samsa.bat` to:
-- Install dependencies automatically
-- Start the API server
-- Open the app in your browser
-
-### Option 2: Manual Setup
-
-1. **Install Dependencies**
-   ```bash
-   npm install
-   ```
-
-2. **Start the Server**
-   ```bash
-   npm start
-   ```
-   Or for development with auto-reload:
-   ```bash
-   npm run dev
-   ```
-
-3. **Open in Browser**
-   Navigate to [http://localhost:3001](http://localhost:3001)
-
-### Option 3: Static Mode (No Backend)
-Open `index.html` using a local web server (like VS Code Live Server). Markets will load from local JSON files.
-
-## 📁 Project Structure
-
-```
-samsa/
-├── index.html              # Main HTML file
-├── server.js               # Express.js API server
-├── start-samsa.bat         # Windows startup script
-├── package.json            # Node.js dependencies
-│
-├── js/
-│   ├── samsa-core.js       # Core configuration & state
-│   ├── core/
-│   │   ├── app.js          # App initialization
-│   │   └── lmsr-engine.js  # LMSR pricing engine
-│   ├── features/
-│   │   ├── markets/        # Markets listing & detail views
-│   │   ├── trading/        # Prediction/trading forms
-│   │   ├── portfolio/      # Dashboard & portfolio
-│   │   ├── interests/      # Interests & categories
-│   │   ├── navigation/     # View navigation
-│   │   └── wallet/         # Deposit/withdraw
-│   └── utils/
-│       └── icons.js        # Icon utilities
-│
-├── css/
-│   └── styles.css          # Custom styles
-│
-├── data/
-│   ├── markets.json        # Market data
-│   ├── predictions.json    # User predictions
-│   ├── users.json          # User accounts
-│   └── transactions.json   # Wallet transactions
-│
-├── lib/
-│   ├── datastore.js        # JSON file read/write
-│   └── lmsr.py             # Python LMSR implementation
-│
-└── Entities/               # Data schemas
-    ├── Market.json
-    ├── Prediction.json
-    └── ...
+```text
+p(YES) = exp(qY / b) / (exp(qY / b) + exp(qN / b))
+pressure change = stake * (1 - p(YES))
 ```
 
-## 🔌 API Endpoints
+`b` controls price sensitivity; a trade updates the selected side's pressure. The engine also computes win/loss previews and exposes market state through `LMSRMarketManager`. A Python counterpart lives in [lib/lmsr.py](lib/lmsr.py).
 
-### Markets
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/markets` | List all markets |
-| GET | `/api/markets/:id` | Get market details |
-| POST | `/api/markets` | Create new market |
-| GET | `/api/markets/trending` | Get trending markets |
-| GET | `/api/markets/category/:category` | Filter by category |
-| POST | `/api/markets/:id/resolve` | Resolve a market |
+This is an **LMSR-inspired risk-pressure simulation**, not a complete standard LMSR cost-function market maker. The binary engine does not establish multi-outcome LMSR support.
 
-### Predictions
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/predictions` | List predictions |
-| POST | `/api/predictions` | Place a prediction |
+**Backend distinction:** the default [Express server](server.js) does not call this pricing engine. It recomputes outcome percentages from each outcome's share of total stakes, accepts client-provided odds, and resolves losing predictions with zero return. Those semantics differ from the browser's rebate previews. The alternative [Flask server](server.py) includes its own LMSR paths, but is not started by `npm start` and is not interchangeable with the Node backend.
 
-### Wallet
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/users/:id/balance` | Get user balance |
-| POST | `/api/users/:id/deposit` | Deposit funds |
-| POST | `/api/users/:id/withdraw` | Withdraw funds |
-| GET | `/api/users/:id/transactions` | Transaction history |
+## Architecture and stack
 
-### Payments (Stripe)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/payments/create-intent` | Create PaymentIntent for wallet deposit |
-| POST | `/api/payments/create-checkout-session` | Create Checkout Session for subscriptions |
-| POST | `/api/stripe/webhook` | Stripe webhook for payment confirmations |
+```mermaid
+flowchart LR
+    A[HTML and JavaScript views] --> B[Browser LMSR-inspired previews]
+    A --> C[Express HTTP API]
+    C --> D[JSON datastore helpers]
+    D --> E[Markets, predictions, users, transactions]
+```
 
-## 💳 Stripe Integration
+| Path | Responsibility |
+| --- | --- |
+| [index.html](index.html), [js/features](js/features) | Browser interface and feature views |
+| [js/core/lmsr-engine.js](js/core/lmsr-engine.js) | Binary pricing and settlement previews |
+| [server.js](server.js) | Express routes, validation, prediction updates, resolution |
+| [lib/datastore.js](lib/datastore.js) | JSON reads/writes and transaction helpers |
+| [data](data) | Committed local state |
+| [Entities](Entities) | Entity schemas; not evidence of runtime enforcement |
+| [server.py](server.py), [lib/lmsr.py](lib/lmsr.py) | Alternative Python implementation |
 
-### Setup
-- Create a Stripe account and obtain keys:
-  - `STRIPE_PUBLISHABLE_KEY` and `STRIPE_SECRET_KEY`
-  - Optional: `STRIPE_DEFAULT_PRICE_ID` for subscriptions
-- Add keys to `.env`:
-  ```
-  STRIPE_PUBLISHABLE_KEY=pk_test_...
-  STRIPE_SECRET_KEY=sk_test_...
-  STRIPE_WEBHOOK_SECRET=whsec_...
-  STRIPE_DEFAULT_PRICE_ID=price_...
-  ```
-- Start server and expose keys to client via `/config/stripe.js`.
+JSON storage reduces setup cost but has no transactional guarantees, locking, or multi-instance coordination. Pricing consistency and authoritative server-side validation are the next architectural priorities.
 
-### One‑Time Deposits
-- Client uses Stripe Elements in the Dashboard “Buying Power” modal.
-- Server creates PaymentIntents with user metadata.
-- Webhook confirms `payment_intent.succeeded` and credits balance via transactions.
+## Getting started
 
-### Recurring Subscriptions
-- Client starts a subscription from the deposit modal using Stripe Checkout.
-- Server creates a Session with `mode=subscription` and user metadata.
-- Webhook credits funds on `invoice.payment_succeeded`.
+Use Node.js 22 and npm:
 
-### Security
-- Card data never touches the server; Stripe.js handles tokenization.
-- Webhook uses raw body and signature verification; ensure `STRIPE_WEBHOOK_SECRET` is set.
-- Server validates amounts, currency, and userId.
+```bash
+git clone https://github.com/Advaith-1506/samsa.git
+cd samsa
+npm ci
+npm start
+```
 
-## 🧪 Testing
-- Use Stripe test keys in `.env`.
-- Test cards:
-  - Success: `4242 4242 4242 4242`
-  - Insufficient funds: `4000 0000 0000 9995`
-  - Lost card: `4000 0000 0000 0341`
-- Webhook:
-  - Forward events to `http://localhost:3001/api/stripe/webhook` using Stripe CLI.
-  - Set `STRIPE_WEBHOOK_SECRET` from the CLI output.
+Open [http://localhost:3001](http://localhost:3001). For auto-reload, use `npm run dev`. Windows users can also inspect and run [start-samsa.bat](start-samsa.bat).
 
-## 🛠️ Troubleshooting
-- Webhook signature errors: verify raw body route is mounted before `express.json()` and secret matches.
-- Card confirmation errors: check publishable key exposure via `/config/stripe.js` and ensure Stripe script loads.
-- Subscription redirects: confirm `STRIPE_DEFAULT_PRICE_ID` exists and is active in Stripe.
+Leave Stripe credentials unset for the local simulation. Payment integration code exists, but is not required for this walkthrough and was not exercised in the audit. Keep any provider credentials in an untracked `.env`.
 
-## 🎨 Tech Stack
+For frontend-only browsing, serve the repository with a local static server; local JSON fallback does not establish full backend parity.
 
-- **Frontend**: Vanilla JavaScript, Tailwind CSS, HTML5
-- **Backend**: Node.js, Express.js
-- **Data**: JSON file storage
-- **Pricing**: LMSR (Logarithmic Market Scoring Rule)
+## API highlights — Node/Express
 
-## 📈 Market Categories
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/health` | Service health |
+| GET | `/api/markets` | List markets |
+| GET | `/api/markets/trending` | Active markets ordered by total volume |
+| GET | `/api/markets/category/:category` | Category filter |
+| GET | `/api/markets/:id` | Market detail |
+| POST | `/api/markets` | Create a market with at least two outcomes |
+| GET | `/api/predictions` | List predictions; optional `market_id` query |
+| POST | `/api/predictions` | Record a simulated prediction |
+| POST | `/api/markets/:id/resolve` | Set the winning outcome and update prediction status |
+| GET | `/api/users/:id/balance` | Derive a prototype balance from local records |
 
-| Category | Icon | Description |
-|----------|------|-------------|
-| Politics | 🏛️ | Elections, legislation, government |
-| Sports | ⚽ | Championships, games, tournaments |
-| Crypto | ₿ | Bitcoin, Ethereum, crypto prices |
-| Technology | 💻 | AI, product launches, tech companies |
-| Finance | 📈 | Markets, interest rates, economy |
-| Entertainment | 🎬 | Awards, movies, music |
-| Climate | 🌡️ | Climate events, temperature records |
-| Science | 🔬 | Space, discoveries, research |
-| International | 🌍 | Global events, treaties, conflicts |
+Inspect handlers in [server.js](server.js) for payloads. Creating markets, predictions, and resolving outcomes changes committed JSON data; use disposable local state. Even balance lookup can create a default user if its ID is absent.
 
-## 🧮 How LMSR Works
+Read-only smoke checks while the server runs:
 
-Samsa uses the **Logarithmic Market Scoring Rule (LMSR)** for automated market making:
+```bash
+curl http://localhost:3001/api/health
+curl http://localhost:3001/api/markets
+curl http://localhost:3001/api/predictions
+```
 
-- Prices between 0¢ and 100¢ represent probability estimates
-- Buying shares increases the price; selling decreases it
-- **If you win**: Profit = Stake × (1 - probability) - 1% fee
-- **If you lose**: Refund = Stake × probability (rebated risk)
+## Tests and demo
 
-This ensures you never lose your entire stake—you always get back a portion based on the odds.
+```bash
+npm test
+```
 
-## 📄 License
+**Known baseline failure:** the current test command uses Node's runner, but [auth-validation.test.js](tests/auth-validation.test.js) references `test` and `expect` without imports. The audit fails with `ReferenceError: test is not defined`. It does not demonstrate pricing-engine coverage. Repairing the test harness and adding independent pricing invariants are follow-up code work.
 
-ISC License
+To explore locally, browse a market, inspect its outcome probabilities and trade preview, then view the portfolio interface. No hosted demo or verified UI screenshot is available in this snapshot. [The committed logo](Logo-Title.png) is branding, not a screenshot.
 
-## 🤝 Contributing
+## Author and contributions
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Maintained in [Advaith Madala's portfolio](https://github.com/Advaith-1506); see [commit attribution](https://github.com/Advaith-1506/samsa/commits/main/). Start a technical review with the pricing engine, API handlers, and datastore helpers linked above. Package metadata still references another account; reconcile project provenance before claiming sole authorship.
 
----
+## Limitations and next steps
 
-**Samsa** - *Trade on what you believe* 🦋
+- Browser and server pricing/settlement behavior must be reconciled.
+- Mutation routes lack an authentication/authorization boundary and comprehensive amount validation. Do not expose the server publicly.
+- The server statically serves the repository root; `/data/users.json` is retrievable. Use synthetic data only and restrict static serving before deployment.
+- JSON writes are non-atomic across related records; balances are not a production ledger.
+- Stripe and Supabase configuration paths do not establish working payments or secure backend authentication.
+- Add deterministic pricing tests, API validation tests, and explicit persistence boundaries.
+- `package.json` declares ISC, but no standalone license file is present; confirm rights and attribution before adding one.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance.
